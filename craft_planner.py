@@ -98,21 +98,11 @@ def make_goal_checker(goal):
     def is_goal(state):
         # This code is used in the search process and may be called millions of times.
         """If state == goal: return true...?"""
-        print("goal",goal)
-        print("state",state)
-        #if goal in state:
-        #    return True
         for item in state:
-            #print("item is",item)
-            #print("state get item",state.get(item))
-            #print("goal get item",goal.get(item))
-            if goal.get(item) is not None:
-                if state.get(item) >= goal.get(item):
+            if goal.get(item) is not None: #check if this item is the one we want
+                if state.get(item) >= goal.get(item): #check if our state has a sufficient amount of it
                     print(item,"found")
                     return True
-            #if item is goal:
-            #    print(item,"found")
-            #    return True
         return False
 
     return is_goal
