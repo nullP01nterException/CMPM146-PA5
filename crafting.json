@@ -1,5 +1,5 @@
 {
- "Initial": {"furnace": 1, "wood": 3},
+ "Initial": {"furnace" : 1},
  "Goal": {
    "furnace": 1
  },

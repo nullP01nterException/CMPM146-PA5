@@ -42,16 +42,16 @@ def make_checker(rule):
         # This code is called by graph(state) and runs millions of times.
         # Tip: Do something with rule['Consumes'] and rule['Requires'].
         curr_state = state
-        print("rule is",rule)
+        #print("rule is",rule)
         if "Consumes" in rule.keys():
             """if curr_state not in rule["Consumes"]:
                 return False"""
-            print("---")
-            print("STATE",curr_state)
-            print("---")
+            #print("---")
+            #print("STATE",curr_state)
+            #print("---")
             for item in rule["Consumes"]:
-                print("item",item)
-                print("curr_state",item,curr_state[item])
+                #print("item",item)
+                #print("curr_state",item,curr_state[item])
                 if curr_state[item] <= 0:
                     return False
         if "Required" in rule.keys():
@@ -98,8 +98,21 @@ def make_goal_checker(goal):
     def is_goal(state):
         # This code is used in the search process and may be called millions of times.
         """If state == goal: return true...?"""
-        if goal in state:
-            return True
+        print("goal",goal)
+        print("state",state)
+        #if goal in state:
+        #    return True
+        for item in state:
+            #print("item is",item)
+            #print("state get item",state.get(item))
+            #print("goal get item",goal.get(item))
+            if goal.get(item) is not None:
+                if state.get(item) >= goal.get(item):
+                    print(item,"found")
+                    return True
+            #if item is goal:
+            #    print(item,"found")
+            #    return True
         return False
 
     return is_goal
@@ -126,7 +139,9 @@ def search(graph, state, is_goal, limit, heuristic):
     # When you find a path to the goal return a list of tuples [(state, action)]
     # representing the path. Each element (tuple) of the list represents a state
     # in the path and the action that took you to this state
-
+    temp_state = state.copy()
+    print("state",state)
+    print("temp",temp_state)
     #end result list of actions to take to craft goal
     path = []
 
@@ -135,7 +150,7 @@ def search(graph, state, is_goal, limit, heuristic):
 
     #the priority queue of actions to evaluate
     frontier = []
-    frontier.append(state)
+    frontier.append(temp_state)
 
     #links state: next_action_from_applying_a_state
     parent = {}
@@ -144,19 +159,22 @@ def search(graph, state, is_goal, limit, heuristic):
     time_cost = {}
 
     # nodes we have visited
-    visited = {}
-    visited[state] = True
+    came_from = {}
+    came_from[temp_state] = True
 
     while time() - start_time < limit and len(frontier) > 0:
         current = frontier.pop()
-        print("current",current)
+        print("visiting",current)
+        if is_goal(current):
+            print("found goal")
+            break
         for (name,next,cost) in graph(current):
             #print("next",next)
-            if next not in visited:
+            if next not in came_from:
                 #print("is this why+++++++++++")
                 frontier.append(next)
-                visited[next] = True
-
+                came_from[next] = current
+    #return came_from
     # Failed to find a path
     print(time() - start_time, 'seconds.')
     print("Failed to find a path from", state, 'within time limit.')
