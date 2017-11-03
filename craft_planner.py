@@ -1,7 +1,7 @@
 import json
 from collections import namedtuple, defaultdict, OrderedDict
 from timeit import default_timer as time
-
+import heapq
 Recipe = namedtuple('Recipe', ['name', 'check', 'effect', 'cost'])
 
 
@@ -42,23 +42,22 @@ def make_checker(rule):
         # This code is called by graph(state) and runs millions of times.
         # Tip: Do something with rule['Consumes'] and rule['Requires'].
         curr_state = state
-        #print("rule is",rule)
+        """
+        print("curr_state",curr_state)
+        for item in curr_state:
+            print("item is",item)
+        print("curr 0", curr_state[0])
+        for item in curr_state[0]:
+            print("these",item)
+        """
         if "Consumes" in rule.keys():
-            """if curr_state not in rule["Consumes"]:
-                return False"""
-            #print("---")
-            #print("STATE",curr_state)
-            #print("---")
             for item in rule["Consumes"]:
                 #print("item",item)
-                #print("curr_state",item,curr_state[item])
-                if curr_state[item] <= 0:
+                if curr_state[0][item] <= 0:
                     return False
-        if "Required" in rule.keys():
-            """if curr_state not in rule["Required"]:
-                return False"""
-            for item in rule["Required"]:
-                if curr_state[item] <= 0:
+        if "Requires" in rule.keys():
+            for item in rule["Requires"]:
+                if curr_state[0][item] <= 0:
                     return False
 
         return True
@@ -79,12 +78,12 @@ def make_effector(rule):
 
         if "Consumes" in rule.keys():
             for item in rule["Consumes"]:
-                curr_state[item] -= rule["Consumes"][item]
+                curr_state[0][item] -= rule["Consumes"][item]
         product_type = rule.get("Produces","")
         num_products = 0
         for result in product_type: #increment based on how many items the rule produced
             num_products += product_type[result]
-            curr_state[result] += num_products
+            curr_state[0][result] += num_products
         next_state = curr_state
         return next_state
 
@@ -129,9 +128,9 @@ def search(graph, state, is_goal, limit, heuristic):
     # When you find a path to the goal return a list of tuples [(state, action)]
     # representing the path. Each element (tuple) of the list represents a state
     # in the path and the action that took you to this state
-    temp_state = state.copy()
+    start = state.copy()
     print("state",state)
-    print("temp",temp_state)
+    print("temp",start)
     #end result list of actions to take to craft goal
     path = []
 
@@ -140,7 +139,8 @@ def search(graph, state, is_goal, limit, heuristic):
 
     #the priority queue of actions to evaluate
     frontier = []
-    frontier.append(temp_state)
+    heapq.heappush(frontier,(start,0))
+    #frontier.append(start)
 
     #links state: next_action_from_applying_a_state
     parent = {}
@@ -150,24 +150,39 @@ def search(graph, state, is_goal, limit, heuristic):
 
     # nodes we have visited
     came_from = {}
-    came_from[temp_state] = True
+    came_from[start] = None
 
+    cost_so_far = {} #keeps track of cost so far
+    cost_so_far[start] = 0
+
+    goal_found = False #bool to track if goal was found
     while time() - start_time < limit and len(frontier) > 0:
         current = frontier.pop()
         print("visiting",current)
         if is_goal(current):
             print("found goal")
+            goal_found = True
             break
         for (name,next,cost) in graph(current):
+            #assuming cost is cost from current to next
+            print("cost_so_far",cost_so_far)
+            new_cost = cost_so_far[current[0]] + cost
             #print("next",next)
-            if next not in came_from:
+            if next not in cost_so_far or new_cost < cost_so_far[next]:
+                cost_so_far[next] = new_cost
+                priority = new_cost
                 #print("is this why+++++++++++")
-                frontier.append(next)
+                #frontier.append(next)
+                heapq.heappush(frontier,(next,priority))
                 came_from[next] = current
     #return came_from
     # Failed to find a path
+
     print(time() - start_time, 'seconds.')
-    print("Failed to find a path from", state, 'within time limit.')
+    if not goal_found:
+        print("Failed to find a path from", state, 'within time limit.')
+    else:
+        print("We found the thing")
     return None
 
 if __name__ == '__main__':
