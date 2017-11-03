@@ -41,12 +41,17 @@ def make_checker(rule):
     def check(state):
         # This code is called by graph(state) and runs millions of times.
         # Tip: Do something with rule['Consumes'] and rule['Requires'].
-        curr_state = state.copy()
-
+        curr_state = state
+        print("rule is",rule)
         if "Consumes" in rule.keys():
             """if curr_state not in rule["Consumes"]:
                 return False"""
+            print("---")
+            print("STATE",curr_state)
+            print("---")
             for item in rule["Consumes"]:
+                print("item",item)
+                print("curr_state",item,curr_state[item])
                 if curr_state[item] <= 0:
                     return False
         if "Required" in rule.keys():
@@ -75,8 +80,11 @@ def make_effector(rule):
         if "Consumes" in rule.keys():
             for item in rule["Consumes"]:
                 curr_state[item] -= rule["Consumes"][item]
-
-        curr_state[rule["Produces"].keys()] += rule["Produces"].values()
+        product_type = rule.get("Produces","")
+        num_products = 0
+        for result in product_type: #increment based on how many items the rule produced
+            num_products += product_type[result]
+            curr_state[result] += num_products
         next_state = curr_state
         return next_state
 
@@ -135,8 +143,19 @@ def search(graph, state, is_goal, limit, heuristic):
     #time cost to perform an action
     time_cost = {}
 
-    while time() - start_time < limit:
-        pass
+    # nodes we have visited
+    visited = {}
+    visited[state] = True
+
+    while time() - start_time < limit and len(frontier) > 0:
+        current = frontier.pop()
+        print("current",current)
+        for (name,next,cost) in graph(current):
+            #print("next",next)
+            if next not in visited:
+                #print("is this why+++++++++++")
+                frontier.append(next)
+                visited[next] = True
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
@@ -164,6 +183,7 @@ if __name__ == '__main__':
     for name, rule in Crafting['Recipes'].items():
         checker = make_checker(rule)
         effector = make_effector(rule)
+        #print("what???????????????")
         recipe = Recipe(name, checker, effector, rule['Time'])
         all_recipes.append(recipe)
 
@@ -175,10 +195,12 @@ if __name__ == '__main__':
     state.update(Crafting['Initial'])
 
     # Search for a solution
+    #print("SEARCHING")
     resulting_plan = search(graph, state, is_goal, 5, heuristic)
 
     if resulting_plan:
         # Print resulting plan
         for state, action in resulting_plan:
+            #print("searching---")
             print('\t',state)
             print(action)
