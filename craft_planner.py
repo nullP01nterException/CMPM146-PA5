@@ -1,7 +1,8 @@
 import json
 from collections import namedtuple, defaultdict, OrderedDict
 from timeit import default_timer as time
-import heapq
+from heapq import heappop
+
 Recipe = namedtuple('Recipe', ['name', 'check', 'effect', 'cost'])
 
 
@@ -41,25 +42,16 @@ def make_checker(rule):
     def check(state):
         # This code is called by graph(state) and runs millions of times.
         # Tip: Do something with rule['Consumes'] and rule['Requires'].
-        curr_state = state
-        """
-        print("curr_state",curr_state)
-        for item in curr_state:
-            print("item is",item)
-        print("curr 0", curr_state[0])
-        for item in curr_state[0]:
-            print("these",item)
-        """
-        if "Consumes" in rule.keys():
-            for item in rule["Consumes"]:
-                #print("item",item)
-                if curr_state[0][item] <= 0:
-                    return False
+        curr_state = state.copy()
         if "Requires" in rule.keys():
             for item in rule["Requires"]:
-                if curr_state[0][item] <= 0:
+                if curr_state[item] <= 0:
                     return False
 
+        if "Consumes" in rule.keys():
+            for item in rule["Consumes"]:
+                if curr_state[item] <= 0:
+                    return False
         return True
 
     return check
@@ -73,17 +65,14 @@ def make_effector(rule):
     def effect(state):
         # This code is called by graph(state) and runs millions of times
         # Tip: Do something with rule['Produces'] and rule['Consumes'].
-        curr_state = state
+        curr_state = state.copy()
         next_state = None
-
         if "Consumes" in rule.keys():
             for item in rule["Consumes"]:
-                curr_state[0][item] -= rule["Consumes"][item]
-        product_type = rule.get("Produces","")
-        num_products = 0
-        for result in product_type: #increment based on how many items the rule produced
-            num_products += product_type[result]
-            curr_state[0][result] += num_products
+                curr_state[item] -= rule["Consumes"][item]
+
+        for keys in rule["Produces"].keys():
+            curr_state[keys] += rule["Produces"][keys]
         next_state = curr_state
         return next_state
 
@@ -93,16 +82,12 @@ def make_effector(rule):
 def make_goal_checker(goal):
     # Implement a function that returns a function which checks if the state has
     # met the goal criteria. This code runs once, before the search is attempted.
-
     def is_goal(state):
         # This code is used in the search process and may be called millions of times.
-        """If state == goal: return true...?"""
-        for item in state:
-            if goal.get(item) is not None: #check if this item is the one we want
-                if state.get(item) >= goal.get(item): #check if our state has a sufficient amount of it
-                    print(item,"found")
-                    return True
-        return False
+        for key in goal.keys():
+            if state[key] < goal[key]:
+                return False
+        return True
 
     return is_goal
 
@@ -118,7 +103,6 @@ def graph(state):
 
 def heuristic(state):
     # Implement your heuristic here!
-    print("state heuristic", state)
     return 0
 
 def search(graph, state, is_goal, limit, heuristic):
@@ -128,61 +112,56 @@ def search(graph, state, is_goal, limit, heuristic):
     # When you find a path to the goal return a list of tuples [(state, action)]
     # representing the path. Each element (tuple) of the list represents a state
     # in the path and the action that took you to this state
-    start = state.copy()
-    print("state",state)
-    print("temp",start)
-    #end result list of actions to take to craft goal
     path = []
 
-    #possibility of actions to take at a state
-    action_list = []
+    """frontier[] all unexplored nodes (priority queue)
+    costsofar{} of costs with key state: value (action, cost)
+    exploring = tuple (timecost, actionname, inventorystate)
+    graph() finds neighbor of the heappop(state) in frontier
 
-    #the priority queue of actions to evaluate
+    for actions in graph(current_state)
+        calculate timecost
+        if timecost not in costsofar or less than prerecorded timecost
+            costsofar[next] = newcost
+            priority = newcost + heuristic(currstate)
+            frontier.heappush(prioirty, action, nextstate)
+            camefrom[next] = current
+    """
+    curr_state = state.copy()
     frontier = []
-    heapq.heappush(frontier,(start,0))
-    #frontier.append(start)
-
-    #links state: next_action_from_applying_a_state
-    parent = {}
-
-    #time cost to perform an action
-    time_cost = {}
-
-    # nodes we have visited
     came_from = {}
-    came_from[start] = None
+    cost_so_far={}
 
-    cost_so_far = {} #keeps track of cost so far
-    cost_so_far[start] = 0
+    frontier.append((0,"start",curr_state))
+    came_from[curr_state] = None
+    cost_so_far[curr_state] = 0
 
-    goal_found = False #bool to track if goal was found
-    while time() - start_time < limit and len(frontier) > 0:
-        current = frontier.pop()
-        print("visiting",current)
-        if is_goal(current):
-            print("found goal")
-            goal_found = True
-            break
-        for (name,next,cost) in graph(current):
-            #assuming cost is cost from current to next
-            print("cost_so_far",cost_so_far)
-            new_cost = cost_so_far[current[0]] + cost
-            #print("next",next)
-            if next not in cost_so_far or new_cost < cost_so_far[next]:
-                cost_so_far[next] = new_cost
-                priority = new_cost
-                #print("is this why+++++++++++")
-                #frontier.append(next)
-                heapq.heappush(frontier,(next,priority))
-                came_from[next] = current
-    #return came_from
+    while time() - start_time < limit:
+        while frontier:
+            exploring = heappop(frontier)
+
+            if is_goal(exploring[2]):
+                #came_from.append((exploring[0],exploring[1], exploring[2]))
+                break
+
+            for next in graph(exploring[2]):
+                name, effect, cost = next
+                new_cost = cost_so_far[exploring[2]] + cost
+                if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
+                    cost_so_far[effect] = new_cost
+                    priority = new_cost + heuristic(effect)
+                    frontier.append((priority, name, effect))
+                    came_from[effect] = ((exploring[0],exploring[1],exploring[2]))
+
+        for items in came_from:
+            print("item",items)
+            path.append((came_from[items][1], came_from[items][0]))
+        print("path",path)
+        #return path
+
     # Failed to find a path
-
     print(time() - start_time, 'seconds.')
-    if not goal_found:
-        print("Failed to find a path from", state, 'within time limit.')
-    else:
-        print("We found the thing")
+    print("Failed to find a path from", state, 'within time limit.')
     return None
 
 if __name__ == '__main__':
@@ -206,7 +185,6 @@ if __name__ == '__main__':
     for name, rule in Crafting['Recipes'].items():
         checker = make_checker(rule)
         effector = make_effector(rule)
-        #print("what???????????????")
         recipe = Recipe(name, checker, effector, rule['Time'])
         all_recipes.append(recipe)
 
@@ -218,12 +196,10 @@ if __name__ == '__main__':
     state.update(Crafting['Initial'])
 
     # Search for a solution
-    #print("SEARCHING")
     resulting_plan = search(graph, state, is_goal, 5, heuristic)
 
     if resulting_plan:
         # Print resulting plan
         for state, action in resulting_plan:
-            #print("searching---")
             print('\t',state)
             print(action)
