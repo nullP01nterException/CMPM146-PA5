@@ -50,7 +50,7 @@ def make_checker(rule):
 
         if "Consumes" in rule.keys():
             for item in rule["Consumes"]:
-                if curr_state[item] <= 0:
+                if curr_state[item] < rule["Consumes"][item]:# fixed this
                     return False
         return True
 
@@ -132,32 +132,42 @@ def search(graph, state, is_goal, limit, heuristic):
     came_from = {}
     cost_so_far={}
 
-    frontier.append((0,"start",curr_state))
-    came_from[curr_state] = None
+    frontier.append((0,"Start",curr_state))
+    came_from[curr_state] = ("Start", None)
     cost_so_far[curr_state] = 0
 
     while time() - start_time < limit:
         while frontier:
+            print("-current frontier-")
+            for item in frontier:
+                print("|  ",item[1],"- for",item[2])
+            print("------------------")
             exploring = heappop(frontier)
-
+            print("    EXPLORING",exploring[1])
             if is_goal(exploring[2]):
-                #came_from.append((exploring[0],exploring[1], exploring[2]))
+                came_from[exploring[2]] = ("     GOAL",exploring[2])
                 break
 
             for next in graph(exploring[2]):
                 name, effect, cost = next
+                print("name",name,"effect",effect,"cost",cost)
                 new_cost = cost_so_far[exploring[2]] + cost
+                #print("new_cost",new_cost)
+                #print("costsofar",cost_so_far)
                 if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
+                    #print(effect)
                     cost_so_far[effect] = new_cost
-                    priority = new_cost + heuristic(effect)
+                    priority = new_cost #+ heuristic(effect)
                     frontier.append((priority, name, effect))
-                    came_from[effect] = ((exploring[0],exploring[1],exploring[2]))
+                    came_from[effect] = (exploring[1],exploring[2])
+                    #print("    EFFECT OF",exploring[1],":",effect,"----------------")
 
-        for items in came_from:
-            print("item",items)
-            path.append((came_from[items][1], came_from[items][0]))
-        print("path",path)
-        #return path
+        if came_from:
+            for items in came_from.values():
+                path.append((items[1],items[0]))
+                #print("items",items[1],items[0])
+            #print("path",path)
+            return path
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
@@ -200,6 +210,11 @@ if __name__ == '__main__':
 
     if resulting_plan:
         # Print resulting plan
+        inty = 20
         for state, action in resulting_plan:
             print('\t',state)
             print(action)
+            inty -= 1
+            if inty <= 0:
+                break
+        print("---")
