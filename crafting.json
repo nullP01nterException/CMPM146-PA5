@@ -1,5 +1,5 @@
 {
- "Initial": {"bench":1,"cobble":7,"iron_pickaxe":1},
+ "Initial": {},
  "Goal": {
    "furnace": 1
  },

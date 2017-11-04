@@ -145,14 +145,25 @@ def search(graph, state, is_goal, limit, heuristic):
     while time() - start_time < limit:
         while frontier:
             exploring = heappop(frontier)
-            print("explore",exploring[2])
+            #print("explore",exploring[2])
             if is_goal(exploring[2]):
-                came_from[exploring[2]] = ("Goal",exploring[2])
 
-                for items in came_from.keys():
-                    curr = came_from[items]
-                    path.append((items, curr[0]))
+                #print("came from",came_from[exploring[2]])
+                prev_state = came_from[exploring[2]]
+                #print("previous",came_from[prev_state[1]])
+                came_from[exploring[2]] = ("Goal", exploring[2])
+                #print("curr",curr_state)
+                path = path_find(prev_state, prev_state,path,came_from,0)
+                path = [(exploring[2],exploring[1])] + path
+                #path.append((curr_state, came_from[curr_state][0]))
+                path.reverse()
+
+                #print("-----")
+                #for items in came_from.keys():
+                #    curr = came_from[items]
+                #    path.append((items, curr[0]))
                     # print("path",path)
+                print(time() - start_time, 'seconds.')
                 return path
 
                 return path
@@ -160,20 +171,37 @@ def search(graph, state, is_goal, limit, heuristic):
                 name, effect, cost = next
                 new_cost = cost_so_far[exploring[2]] + cost
                 if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
-                    print("name",name)
-                    print("cost",new_cost)
+                    #print("name",name)
+                    #print("cost",new_cost)
                     cost_so_far[effect] = new_cost
                     priority = new_cost + heuristic(effect)
                     #frontier.append((priority, name, effect))
                     heappush(frontier,(priority,name,effect))
                     came_from[effect] = (exploring[1],exploring[2])
                     #print("came",came_from)
-            print("------------------------")
+            #print("------------------------")
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
     print("Failed to find a path from", state, 'within time limit.')
     return None
+
+
+def path_find(starting_state, prev_state, path, came_from,count):
+    #end = (starting_state, came_from[starting_state])
+    #print("end", end)
+    #if end not in path:
+    #print("starting state",starting_state)
+    #print("prev_state",prev_state)
+    #print("-")
+    if count <= len(came_from):
+        #print("appending", prev_state[1], prev_state[0])
+        path.append((prev_state[1], prev_state[0]))
+        if prev_state[1] not in came_from.keys() or starting_state is prev_state[1]:
+            return path
+        count += 1
+        path_find(starting_state, came_from[prev_state[1]],path,came_from,count)
+    return path
 
 if __name__ == '__main__':
     with open('Crafting.json') as f:
@@ -207,10 +235,13 @@ if __name__ == '__main__':
     state.update(Crafting['Initial'])
 
     # Search for a solution
-    resulting_plan = search(graph, state, is_goal, 5, heuristic)
+    resulting_plan = search(graph, state, is_goal, 30, heuristic)
 
     if resulting_plan:
         # Print resulting plan
+        print("All Items")
+        print("Initial Inventory",state)
+        print("Goal",Crafting['Goal'])
         for state, action in resulting_plan:
             print('\t',state)
             print(action)
