@@ -132,31 +132,36 @@ def search(graph, state, is_goal, limit, heuristic):
     came_from = {}
     cost_so_far={}
 
-    frontier.append((0,"start",curr_state))
-    came_from[curr_state] = None
+    frontier.append((0,"Start",curr_state))
+    came_from[curr_state] = ("Start", None)
     cost_so_far[curr_state] = 0
 
     while time() - start_time < limit:
         while frontier:
             exploring = heappop(frontier)
-
+            print("exploring",exploring)
             if is_goal(exploring[2]):
-                frontier.append((exploring[0],exploring[1], exploring[2]))
+                came_from[exploring[2]] = ("Goal",exploring[2])
                 break
 
             for next in graph(exploring[2]):
                 name, effect, cost = next
                 new_cost = cost_so_far[exploring[2]] + cost
+                #print("costsofar",cost_so_far)
                 if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
+                    print(effect)
                     cost_so_far[effect] = new_cost
                     priority = new_cost + heuristic(effect)
                     frontier.append((priority, name, effect))
-                    came_from[effect] = exploring[2]
+                    came_from[effect] = (exploring[1],exploring[2])
+                    print("effect",effect,"------------------------------------------------------")
 
-        for items in frontier:
-            path.append((items[2],items[1]))
-        #print("path",path)
-        #return path
+        if came_from:
+            for items in came_from.values():
+                path.append((items[1],items[0]))
+                print("items",items[1],items[0])
+            #print("path",path)
+            return path
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
