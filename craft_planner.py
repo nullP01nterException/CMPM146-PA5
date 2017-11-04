@@ -1,7 +1,8 @@
 import json
 from collections import namedtuple, defaultdict, OrderedDict
 from timeit import default_timer as time
-from heapq import heappop
+from heapq import heappop, heappush
+from math import inf
 
 Recipe = namedtuple('Recipe', ['name', 'check', 'effect', 'cost'])
 
@@ -50,7 +51,7 @@ def make_checker(rule):
 
         if "Consumes" in rule.keys():
             for item in rule["Consumes"]:
-                if curr_state[item] <= 0:
+                if curr_state[item] < rule["Consumes"][item]:  # fixed this
                     return False
         return True
 
@@ -103,6 +104,11 @@ def graph(state):
 
 def heuristic(state):
     # Implement your heuristic here!
+    tools = ["stone_pickaxe","bench","cart","wooden_pickaxe","iron_pickaxe","wooden_axe","stone_axe","iron_axe","furnace"]
+    for key in state.keys():
+        if key in tools:
+            if state[key] > 1:
+                return inf
     return 0
 
 def search(graph, state, is_goal, limit, heuristic):
@@ -133,35 +139,36 @@ def search(graph, state, is_goal, limit, heuristic):
     cost_so_far={}
 
     frontier.append((0,"Start",curr_state))
-    came_from[curr_state] = ("Start", None)
+    came_from[curr_state] = ("start", None)
     cost_so_far[curr_state] = 0
 
     while time() - start_time < limit:
         while frontier:
             exploring = heappop(frontier)
-            print("exploring",exploring)
+            print("explore",exploring[2])
             if is_goal(exploring[2]):
                 came_from[exploring[2]] = ("Goal",exploring[2])
-                break
 
+                for items in came_from.keys():
+                    curr = came_from[items]
+                    path.append((items, curr[0]))
+                    # print("path",path)
+                return path
+
+                return path
             for next in graph(exploring[2]):
                 name, effect, cost = next
                 new_cost = cost_so_far[exploring[2]] + cost
-                #print("costsofar",cost_so_far)
                 if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
-                    print(effect)
+                    print("name",name)
+                    print("cost",new_cost)
                     cost_so_far[effect] = new_cost
                     priority = new_cost + heuristic(effect)
-                    frontier.append((priority, name, effect))
+                    #frontier.append((priority, name, effect))
+                    heappush(frontier,(priority,name,effect))
                     came_from[effect] = (exploring[1],exploring[2])
-                    print("effect",effect,"------------------------------------------------------")
-
-        if came_from:
-            for items in came_from.values():
-                path.append((items[1],items[0]))
-                print("items",items[1],items[0])
-            #print("path",path)
-            return path
+                    #print("came",came_from)
+            print("------------------------")
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
