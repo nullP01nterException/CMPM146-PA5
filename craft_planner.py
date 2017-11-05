@@ -46,12 +46,14 @@ def make_checker(rule):
         curr_state = state.copy()
         if "Requires" in rule.keys():
             for item in rule["Requires"]:
-                if curr_state[item] <= 0:
+                #if curr_state[item] <= 0:
+                if curr_state[item] > 0:
                     return False
 
         if "Consumes" in rule.keys():
             for item in rule["Consumes"]:
-                if curr_state[item] < rule["Consumes"][item]:  # fixed this
+                #if curr_state[item] < rule["Consumes"][item]:  # fixed this
+                if curr_state[item] >= rule["Consumes"][item]: # SWAPPING THIS??? NOT SURE IF CORRECT
                     return False
         return True
 
@@ -70,10 +72,12 @@ def make_effector(rule):
         next_state = None
         if "Consumes" in rule.keys():
             for item in rule["Consumes"]:
-                curr_state[item] -= rule["Consumes"][item]
+                #curr_state[item] -= rule["Consumes"][item] SWAPPING HERE
+                curr_state[item] += rule["Consumes"][item]
 
         for keys in rule["Produces"].keys():
-            curr_state[keys] += rule["Produces"][keys]
+            #curr_state[keys] += rule["Produces"][keys] SWAPPING HERE
+            curr_state[keys] -= rule["Produces"][keys]
         next_state = curr_state
         return next_state
 
@@ -85,9 +89,16 @@ def make_goal_checker(goal):
     # met the goal criteria. This code runs once, before the search is attempted.
     def is_goal(state):
         # This code is used in the search process and may be called millions of times.
-        for key in goal.keys():
-            if state[key] < goal[key]:
+        state = dict(item for item in state.items() if item[1] > 0)
+        for goalItem,stateItem in zip(state, goal):
+            if goalItem != stateItem:
                 return False
+        if len(goal) != len(state):
+            return False
+        #if state is not goal:
+            
+            #if state[key] < goal[key]: #changing this form < to >
+        #    return False
         return True
     return is_goal
 
@@ -107,21 +118,25 @@ def heuristic(state, action, rule,Crafting):
     modifier = 0
 
     for rules in rule:
-        for item in rules["Requires"]:
-            if item in Crafting["Recipes"][action]["Produces"]:
-                modifier -= 200
+        if "Requires" in rules:
+            for item in rules["Requires"]:
+                if item in Crafting["Recipes"][action]["Produces"]:
+                    modifier -= 200
 
-            if "Consumes" in Crafting["Recipes"][action]:
-                for item in rules["Consumes"]:
-                    if item in Crafting["Recipes"][action]["Consumes"]:
-                        modifier -= 100
+                if "Consumes" in Crafting["Recipes"][action]:
+                    if "Consumes" in rules:
+                        for item in rules["Consumes"]:
+                            if item in Crafting["Recipes"][action]["Consumes"]:
+                                modifier -= 100
 
     tools = ["stone_pickaxe","bench","cart","wooden_pickaxe","iron_pickaxe","wooden_axe","stone_axe","iron_axe","furnace"]
     for key in state.keys():
         if key in tools:
             if state[key] > 1:
-                return inf
-    return modifier
+                #return inf
+                return 0
+    #return modifier
+    return 0
 
 def search(graph, state, is_goal, limit, heuristic, rule, Crafting):
     # Implement your search here! Use your heuristic here!
@@ -153,16 +168,19 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting):
     came_from[curr_state] = ("start", None)
     cost_so_far[curr_state] = 0
 
+
+    # flip the variables
+
+
     while frontier and time() - start_time < limit:
         exploring = heappop(frontier) #  = tuple (timecost, actionname, inventorystate)
-        #print("explore",exploring[2])
+        print("explore",exploring[2],exploring[1])
         if is_goal(exploring[2]): # if the next popped thing is the goal
-
-            #print("came from",came_from[exploring[2]])
+            # print("came from",came_from[exploring[2]])
             prev_state = came_from[exploring[2]]
             #print("previous",came_from[prev_state[1]])
             #print("curr",curr_state)
-            path = path_find(prev_state, prev_state, path, came_from,0) # finds the path from goal to start
+            path = path_find(prev_state, prev_state, path, came_from, 0) # finds the path from goal to start
             came_from[exploring[2]] = ("Goal", exploring[2]) # set this action to be the goal - final action
             path = [(exploring[2],exploring[1])] + path # append the goal onto there
             path.reverse() # reverses so it prints in the right order
@@ -171,12 +189,13 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting):
 
         for next in graph(exploring[2]): # finds neighbor of the heappop(state) in frontier
             name, effect, cost = next
-            new_cost = cost_so_far[exploring[2]] + cost #calculate timecost
+            new_cost = 0 - cost_so_far[exploring[2]] - cost #calculate timecost
 
             # if its not in cost_so_far or its a better time, ...
-            if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
+            if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]: # changed from < to >
                 #print("name",name,"cost",new_cost,"effect",effect)
                 cost_so_far[effect] = new_cost # cost_so_far[next] = new_cost
+                # print("cost of effect",effect,new_cost)
                 priority = new_cost + heuristic(effect, name, rule, Crafting)
                 heappush(frontier,(priority,name,effect)) # frontier.heappush(priority, action, next_state)
                 came_from[effect] = (exploring[1],exploring[2]) #came_from[next] = current
@@ -230,11 +249,17 @@ if __name__ == '__main__':
 
 
     # Create a function which checks for the goal
-    is_goal = make_goal_checker(Crafting['Goal'])
+    # is_goal = make_goal_checker(Crafting['Goal'])
+    # To make it backwards: 
+    is_goal = make_goal_checker(Crafting["Initial"])
 
     # Initialize first state from initial inventory
+    # state = State({key: 0 for key in Crafting['Items']})
+    # state.update(Crafting['Initial'])
+    # To make it backwards:
     state = State({key: 0 for key in Crafting['Items']})
-    state.update(Crafting['Initial'])
+    state.update(Crafting['Goal'])
+
 
     # Search for a solution
     resulting_plan = search(graph, state, is_goal, 30, heuristic, req_rule, Crafting)
