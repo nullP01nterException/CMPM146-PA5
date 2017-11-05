@@ -111,7 +111,7 @@ def graph(state):
 
 def heuristic(state, action, rule, Crafting):
     # Implement your heuristic here!
-    print("////////////",action)
+    #print("////////////",action)
     modifier = 0
 
     for rules in rule:
@@ -131,22 +131,23 @@ def heuristic(state, action, rule, Crafting):
     good_tools = ["stone_pickaxe","stone_axe"]
     usable_tools = ["wooden_pickaxe","wooden_axe"]
 
-    action_string = action.split(" ")
     for key in state.keys():
-        if key in best_tools and state[key] > 1:
-            if key is "iron_pickaxe" and (("stone_pickaxe" or "wooden_pickaxe") and "for") in action_string:
+        if key in best_tools and state[key] == 1:
+            if key is "iron_pickaxe" and ("stone_pickaxe for" in action or "wooden_pickaxe for" in action):
                 return inf
-            elif (("stone_axe" or "wooden_axe") and "for") in action_string:
+            elif key is "iron_pickaxe" and ("stone_axe for" in action or "wooden_axe for" in action):
                 return inf
-        elif key in good_tools and state[key] > 1:
-            if key is "stone_pickaxe" and ("wooden_pickaxe" and "for") in action_string:
+        elif key in good_tools and state[key] == 1:
+            #print("00000000000000000000key", key, "action", action)
+            if key is "stone_pickaxe" and "wooden_pickaxe for" in action:
+                print("here")
                 return inf
-            elif ("wooden_axe" and "for") in action_string:
+            elif key is "stone_axe" and "wooden_axe for" in action:
                 return inf
+        elif key in usable_tools and "punch" in action:
+            return inf
 
         if key in tools and state[key] > 1:
-            if "punch" in action_string:
-                return inf
             return inf
 
     return modifier
@@ -263,7 +264,7 @@ if __name__ == '__main__':
     state.update(Crafting['Initial'])
 
     # Search for a solution
-    resulting_plan = search(graph, state, is_goal, 30, heuristic, req_rule, Crafting)
+    resulting_plan = search(graph, state, is_goal, 120, heuristic, req_rule, Crafting)
 
     if resulting_plan:
         # Print resulting plan
