@@ -116,7 +116,7 @@ def heuristic(state, action, rule, Crafting, consumed, required):
 
     for product in Crafting["Recipes"][action]["Produces"]:
         if product in required or product in consumed:
-            if state[product] < 10:
+            if state[product] <= 8:
                 modifier -= 500
 
     for rules in rule:
@@ -206,7 +206,7 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting, consumed, re
             if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
                 cost_so_far[effect] = new_cost
                 priority = new_cost + heuristic(effect, name, rule, Crafting, consumed, required)
-                print("name", name, "cost", new_cost, "effect", effect, "priority",priority)
+                #print("name", name, "cost", new_cost, "effect", effect, "priority",priority)
                 heappush(frontier,(priority,name,effect))
                 came_from[effect] = (exploring[1],exploring[2])
         #print("------------------------")
@@ -316,10 +316,10 @@ if __name__ == '__main__':
                 # prefer the rule that uses wooden_pickaxe
                     best_action = rule
                     smallest = req + con
-    print("best_action",best_action)
+    #print("best_action",best_action)
     required, consumed = required_for_goal(Crafting, best_action, required, consumed)
-    print("required",required)
-    print("consumed",consumed)
+    #print("required",required)
+    #print("consumed",consumed)
     # Search for a solution
     resulting_plan = search(graph, state, is_goal, 60, heuristic, req_rule, Crafting, consumed, required)
     # resulting_plan = False
