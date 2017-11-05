@@ -109,8 +109,9 @@ def graph(state):
             yield (r.name, r.effect(state), r.cost)
 
 
-def heuristic(state, action, rule,Crafting):
+def heuristic(state, action, rule, Crafting):
     # Implement your heuristic here!
+    print("////////////",action)
     modifier = 0
 
     for rules in rule:
@@ -118,18 +119,36 @@ def heuristic(state, action, rule,Crafting):
             if item in Crafting["Recipes"][action]["Produces"]:
                 modifier -= 200
 
-            if "Consumes" in Crafting["Recipes"][action]:
+            """if "Consumes" in Crafting["Recipes"][action]:
                 for item in rules["Consumes"]:
                     if item in Crafting["Recipes"][action]["Consumes"]:
-                        modifier -= 100
+                        modifier -= 100"""
 
 
 
     tools = ["stone_pickaxe","bench","cart","wooden_pickaxe","iron_pickaxe","wooden_axe","stone_axe","iron_axe","furnace"]
+    best_tools = ["iron_pickaxe","iron_axe"]
+    good_tools = ["stone_pickaxe","stone_axe"]
+    usable_tools = ["wooden_pickaxe","wooden_axe"]
+
+    action_string = action.split(" ")
     for key in state.keys():
-        if key in tools:
-            if state[key] > 1:
+        if key in best_tools and state[key] > 1:
+            if key is "iron_pickaxe" and (("stone_pickaxe" or "wooden_pickaxe") and "for") in action_string:
                 return inf
+            elif (("stone_axe" or "wooden_axe") and "for") in action_string:
+                return inf
+        elif key in good_tools and state[key] > 1:
+            if key is "stone_pickaxe" and ("wooden_pickaxe" and "for") in action_string:
+                return inf
+            elif ("wooden_axe" and "for") in action_string:
+                return inf
+
+        if key in tools and state[key] > 1:
+            if "punch" in action_string:
+                return inf
+            return inf
+
     return modifier
 
 def search(graph, state, is_goal, limit, heuristic, rule, Crafting):
@@ -159,42 +178,34 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting):
     came_from = {}
     cost_so_far={}
 
+
     frontier.append((0,"Start",curr_state))
     came_from[curr_state] = ("start", None)
     cost_so_far[curr_state] = 0
 
-    #while time() - start_time < limit:
     while frontier and time() - start_time < limit:
         exploring = heappop(frontier)
-        #print("explore",exploring[2])
+        print("explore",exploring)
         if is_goal(exploring[2]):
 
-            #print("came from",came_from[exploring[2]])
             prev_state = came_from[exploring[2]]
-            #print("previous",came_from[prev_state[1]])
             came_from[exploring[2]] = ("Goal", exploring[2])
-            #print("curr",curr_state)
             path = path_find(prev_state, prev_state,path,came_from,0)
             path = [(exploring[2],exploring[1])] + path
-            #path.append((curr_state, came_from[curr_state][0]))
             path.reverse()
             print(time() - start_time, 'seconds.')
             return path
 
-            return path
         for next in graph(exploring[2]):
             name, effect, cost = next
             new_cost = cost_so_far[exploring[2]] + cost
             if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
-                #print("name",name,"cost",new_cost,"effect",effect)
-                #print("cost",new_cost)
                 cost_so_far[effect] = new_cost
                 priority = new_cost + heuristic(effect, name, rule, Crafting)
-                #frontier.append((priority, name, effect))
+                print("name", name, "cost", new_cost, "effect", effect, "priority",priority)
                 heappush(frontier,(priority,name,effect))
                 came_from[effect] = (exploring[1],exploring[2])
-                #print("came",came_from)
-        #print("------------------------")
+        print("------------------------")
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
@@ -203,20 +214,15 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting):
 
 
 def path_find(starting_state, prev_state, path, came_from,count):
-    #end = (starting_state, came_from[starting_state])
-    #print("end", end)
-    #if end not in path:
-    #print("starting state",starting_state)
-    #print("prev_state",prev_state)
-    #print("-")
     if count <= len(came_from):
-        #print("appending", prev_state[1], prev_state[0])
         path.append((prev_state[1], prev_state[0]))
         if prev_state[1] not in came_from.keys() or starting_state is prev_state[1]:
             return path
         count += 1
         path_find(starting_state, came_from[prev_state[1]],path,came_from,count)
     return path
+
+
 
 if __name__ == '__main__':
     with open('Crafting.json') as f:
