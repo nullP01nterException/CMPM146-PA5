@@ -223,31 +223,21 @@ def path_find(starting_state, prev_state, path, came_from,count):
     return path
 
 def required_for_goal(Crafting, action, required, consumed):
-    """
-    the first action will be the one that makes the goal
-    if the action  requires something
-        for item that (the action) requires
-            put it into the requires list
-            check what that items creation requires
-    if the action consumes something
-        for item that (the action) consumes
-            put it into the consumes list
-            check what that item consumes
-    return required, consumed
-    """
-    if "Requires" in Crafting["Recipes"][action]:
-        for required_item in Crafting["Recipes"][action]["Requires"]:
+    #the first action will be the one that makes the goal  
+    if "Requires" in Crafting["Recipes"][action]: #if the action  requires something
+        for required_item in Crafting["Recipes"][action]["Requires"]: # for item that (the action) requires
             #print ("required item",required_item)
             for product_action in Crafting["Recipes"]:
                 if required_item in Crafting["Recipes"][product_action]["Produces"]:
                     #print("product",required_item)
                     if required_item not in required:
-                        required.append(required_item)
+                        required.append(required_item) # put it into the requires list
+                        # check what that items creation requires
                         required2, consumed2 = required_for_goal(Crafting,product_action,required,consumed)
                         for new_items in required2:
                             if new_items not in required:
                                 required.append(new_items)
-
+    # exact same thing for consumes
     if "Consumes" in Crafting["Recipes"][action]:
         for consumed_item in Crafting["Recipes"][action]["Consumes"]:
             #print ("consumed item",consumed_item)
