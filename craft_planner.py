@@ -224,6 +224,35 @@ def path_find(starting_state, prev_state, path, came_from,count):
     return path
 
 
+def required_for_goal(Crafting, action, required, consumed):
+    #the first action will be the one that makes the goal  
+    if "Requires" in Crafting["Recipes"][action]: #if the action  requires something
+        for required_item in Crafting["Recipes"][action]["Requires"]: # for item that (the action) requires
+            #print ("required item",required_item)
+            for product_action in Crafting["Recipes"]:
+                if required_item in Crafting["Recipes"][product_action]["Produces"]:
+                    #print("product",required_item)
+                    if required_item not in required:
+                        required.append(required_item) # put it into the requires list
+                        # check what that items creation requires
+                        required2, consumed2 = required_for_goal(Crafting,product_action,required,consumed)
+                        for new_items in required2:
+                            if new_items not in required:
+                                required.append(new_items)
+    # exact same thing for consumes
+    if "Consumes" in Crafting["Recipes"][action]:
+        for consumed_item in Crafting["Recipes"][action]["Consumes"]:
+            #print ("consumed item",consumed_item)
+            for product_action in Crafting["Recipes"]:
+                if consumed_item in Crafting["Recipes"][product_action]["Produces"]:
+                    #print("product",consumed_item)
+                    if consumed_item not in consumed:
+                        consumed.append(consumed_item)
+                        required2, consumed2 = required_for_goal(Crafting,product_action,required,consumed)
+                        for new_items in consumed2:
+                            if new_items not in consumed:
+                                consumed.append(new_items)
+    return required, consumed
 
 if __name__ == '__main__':
     with open('Crafting.json') as f:
@@ -263,9 +292,34 @@ if __name__ == '__main__':
     state = State({key: 0 for key in Crafting['Items']})
     state.update(Crafting['Initial'])
 
+    # Traceback the actions leading to the goal
+    required = []
+    consumed = []
+    best_action = None
+    smallest = 999
+    for rule in Crafting["Recipes"]:
+        for goal in Crafting["Goal"]:
+            if goal in Crafting["Recipes"][rule]["Produces"]:
+                if "Requires" in Crafting["Recipes"][rule]:
+                    req = len(Crafting["Recipes"][rule]["Requires"])
+                else:
+                    req = 0
+                if "Consumes" in Crafting["Recipes"][rule]:
+                    con = len(Crafting["Recipes"][rule]["Consumes"])
+                else:
+                    con = 0
+                if req + con < smallest: # finds the action with the smallest list of required/consumed items
+                # this could be modified to consider that wooden pickaxe is an easier item to get than iron_pixaxe and
+                # prefer the rule that uses wooden_pickaxe
+                    best_action = rule
+                    smallest = req + con
+    print("best_action",best_action)
+    required, consumed = required_for_goal(Crafting, best_action, required, consumed)
+    print("required",required)
+    print("consumed",consumed)
     # Search for a solution
     resulting_plan = search(graph, state, is_goal, 120, heuristic, req_rule, Crafting)
-
+    # resulting_plan = False
     if resulting_plan:
         # Print resulting plan
         print("All Items")
