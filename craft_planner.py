@@ -89,6 +89,12 @@ def make_goal_checker(goal):
             if state[key] < goal[key]:
                 return False
         return True
+        #for item in state: #Changed back to this one because the other one was causing an error
+        #    if goal.get(item) is not None:  # check if this item is the one we want
+        #        if state.get(item) >= goal.get(item):  # check if our state has a sufficient amount of it
+        #            print(item, "found")
+        #            return True
+        #return False
 
     return is_goal
 
@@ -97,21 +103,36 @@ def graph(state):
     # Iterates through all recipes/rules, checking which are valid in the given state.
     # If a rule is valid, it returns the rule's name, the resulting state after application
     # to the given state, and the cost for the rule.
+    #print("stuck in graph?")
     for r in all_recipes:
         if r.check(state):
             yield (r.name, r.effect(state), r.cost)
 
 
-def heuristic(state):
+def heuristic(state, action, rule,Crafting):
     # Implement your heuristic here!
+    modifier = 0
+
+    for rules in rule:
+        for item in rules["Requires"]:
+            if item in Crafting["Recipes"][action]["Produces"]:
+                modifier -= 200
+
+            if "Consumes" in Crafting["Recipes"][action]:
+                for item in rules["Consumes"]:
+                    if item in Crafting["Recipes"][action]["Consumes"]:
+                        modifier -= 100
+
+
+
     tools = ["stone_pickaxe","bench","cart","wooden_pickaxe","iron_pickaxe","wooden_axe","stone_axe","iron_axe","furnace"]
     for key in state.keys():
         if key in tools:
             if state[key] > 1:
                 return inf
-    return 0
+    return modifier
 
-def search(graph, state, is_goal, limit, heuristic):
+def search(graph, state, is_goal, limit, heuristic, rule, Crafting):
 
     start_time = time()
     # Implement your search here! Use your heuristic here!
@@ -142,44 +163,38 @@ def search(graph, state, is_goal, limit, heuristic):
     came_from[curr_state] = ("start", None)
     cost_so_far[curr_state] = 0
 
-    while time() - start_time < limit:
-        while frontier:
-            exploring = heappop(frontier)
-            #print("explore",exploring[2])
-            if is_goal(exploring[2]):
+    #while time() - start_time < limit:
+    while frontier and time() - start_time < limit:
+        exploring = heappop(frontier)
+        #print("explore",exploring[2])
+        if is_goal(exploring[2]):
 
-                #print("came from",came_from[exploring[2]])
-                prev_state = came_from[exploring[2]]
-                #print("previous",came_from[prev_state[1]])
-                came_from[exploring[2]] = ("Goal", exploring[2])
-                #print("curr",curr_state)
-                path = path_find(prev_state, prev_state,path,came_from,0)
-                path = [(exploring[2],exploring[1])] + path
-                #path.append((curr_state, came_from[curr_state][0]))
-                path.reverse()
+            #print("came from",came_from[exploring[2]])
+            prev_state = came_from[exploring[2]]
+            #print("previous",came_from[prev_state[1]])
+            came_from[exploring[2]] = ("Goal", exploring[2])
+            #print("curr",curr_state)
+            path = path_find(prev_state, prev_state,path,came_from,0)
+            path = [(exploring[2],exploring[1])] + path
+            #path.append((curr_state, came_from[curr_state][0]))
+            path.reverse()
+            print(time() - start_time, 'seconds.')
+            return path
 
-                #print("-----")
-                #for items in came_from.keys():
-                #    curr = came_from[items]
-                #    path.append((items, curr[0]))
-                    # print("path",path)
-                print(time() - start_time, 'seconds.')
-                return path
-
-                return path
-            for next in graph(exploring[2]):
-                name, effect, cost = next
-                new_cost = cost_so_far[exploring[2]] + cost
-                if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
-                    #print("name",name)
-                    #print("cost",new_cost)
-                    cost_so_far[effect] = new_cost
-                    priority = new_cost + heuristic(effect)
-                    #frontier.append((priority, name, effect))
-                    heappush(frontier,(priority,name,effect))
-                    came_from[effect] = (exploring[1],exploring[2])
-                    #print("came",came_from)
-            #print("------------------------")
+            return path
+        for next in graph(exploring[2]):
+            name, effect, cost = next
+            new_cost = cost_so_far[exploring[2]] + cost
+            if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
+                #print("name",name,"cost",new_cost,"effect",effect)
+                #print("cost",new_cost)
+                cost_so_far[effect] = new_cost
+                priority = new_cost + heuristic(effect, name, rule, Crafting)
+                #frontier.append((priority, name, effect))
+                heappush(frontier,(priority,name,effect))
+                came_from[effect] = (exploring[1],exploring[2])
+                #print("came",came_from)
+        #print("------------------------")
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
@@ -221,11 +236,18 @@ if __name__ == '__main__':
 
     # Build rules
     all_recipes = []
+    req_rule = []
+
     for name, rule in Crafting['Recipes'].items():
         checker = make_checker(rule)
         effector = make_effector(rule)
         recipe = Recipe(name, checker, effector, rule['Time'])
         all_recipes.append(recipe)
+
+        for key in rule["Produces"]:
+            if key in Crafting["Goal"].keys():
+                req_rule.append(rule)
+
 
     # Create a function which checks for the goal
     is_goal = make_goal_checker(Crafting['Goal'])
@@ -235,13 +257,15 @@ if __name__ == '__main__':
     state.update(Crafting['Initial'])
 
     # Search for a solution
-    resulting_plan = search(graph, state, is_goal, 30, heuristic)
+    resulting_plan = search(graph, state, is_goal, 30, heuristic, req_rule, Crafting)
 
     if resulting_plan:
         # Print resulting plan
         print("All Items")
         print("Initial Inventory",state)
         print("Goal",Crafting['Goal'])
+        print("PATH:")
+        del resulting_plan[0]
         for state, action in resulting_plan:
             print('\t',state)
             print(action)
