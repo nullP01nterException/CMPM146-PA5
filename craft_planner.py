@@ -83,11 +83,14 @@ def make_effector(rule):
 def make_goal_checker(goal):
     # Implement a function that returns a function which checks if the state has
     # met the goal criteria. This code runs once, before the search is attempted.
+    for key in goal.keys():
+        print("key",key)
     def is_goal(state):
         # This code is used in the search process and may be called millions of times.
         for key in goal.keys():
             if state[key] < goal[key]:
                 return False
+            #print("key!!",key)
         return True
         #for item in state: #Changed back to this one because the other one was causing an error
         #    if goal.get(item) is not None:  # check if this item is the one we want
@@ -109,32 +112,41 @@ def graph(state):
             yield (r.name, r.effect(state), r.cost)
 
 
-def heuristic(state, action, rule, Crafting, consumed, required):
+def heuristic(state, action, rule, Crafting, consumed, required, goals):
     # Implement your heuristic here!
     #print("////////////",action)
     modifier = 0
 
     for product in Crafting["Recipes"][action]["Produces"]:
-        if product in required or product in consumed:
+        if product in goals:
+            if product not in required and product not in consumed:
+                modifier -= 400
+            modifier -= 300
+        elif product in required or product in consumed:
             if product is "stick" and state[product] <= 2:
                 modifier -= 100
             elif product is "wood" and state[product] <= 4:
                 modifier -= 100
             elif product is "coal" and state[product] <= 2:
                 modifier -= 100
+            if product is "rail" and state[product] <= 36:
+                modifier -= 100
             elif state[product] <= 8:
                 modifier -= 100
+        
 
     for rules in rule:
-        for item in rules["Requires"]:
-            if item in Crafting["Recipes"][action]["Produces"]:
-                modifier -= 300
-                # modifier += 0
+        if "Requires" in rules:
+            for item in rules["Requires"]:
+                if item in Crafting["Recipes"][action]["Produces"]:
+                    modifier -= 300
+                    # modifier += 0
 
-            if "Consumes" in Crafting["Recipes"][action]:
-                for item in rules["Consumes"]:
-                    if item in Crafting["Recipes"][action]["Consumes"]:
-                        modifier -= 50
+                if "Consumes" in Crafting["Recipes"][action]:
+                    if "Consumes" in rules:
+                        for item in rules["Consumes"]:
+                            if item in Crafting["Recipes"][action]["Consumes"]:
+                                modifier -= 50
 
     tools = ["stone_pickaxe","bench","cart","wooden_pickaxe","iron_pickaxe","wooden_axe","stone_axe","iron_axe","furnace"]
     best_tools = ["iron_pickaxe","iron_axe"]
@@ -159,12 +171,12 @@ def heuristic(state, action, rule, Crafting, consumed, required):
             #print("00000000000000000000key", key, "--action", action)
             return inf
 
-        if key in tools and state[key] > 1:
+        if key in tools and state[key] > 2:
             return inf
 
     return modifier
 
-def search(graph, state, is_goal, limit, heuristic, rule, Crafting, consumed, required):
+def search(graph, state, is_goal, limit, heuristic, rule, Crafting, consumed, required, goals):
 
     start_time = time()
     # Implement your search here! Use your heuristic here!
@@ -214,7 +226,7 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting, consumed, re
             new_cost = cost_so_far[exploring[2]] + cost
             if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
                 cost_so_far[effect] = new_cost
-                priority = new_cost + heuristic(effect, name, rule, Crafting, consumed, required)
+                priority = new_cost + heuristic(effect, name, rule, Crafting, consumed, required, goals)
                 #if priority < 1000:
                     #print("name", name, "cost", new_cost, "effect", effect, "priority", priority)
                     #cost = new_cost
@@ -280,7 +292,7 @@ if __name__ == '__main__':
     #print('Initial inventory:', Crafting['Initial'])
     #
     # # List of items needed to be in your inventory at the end of the plan:
-    #print('Goal:',Crafting['Goal'])
+    print('Goal:',Crafting['Goal'])
     #
     # # Dict of crafting recipes (each is a dict):
     #print('Example recipe:','craft stone_pickaxe at bench ->',Crafting['Recipes']['craft stone_pickaxe at bench'])
@@ -310,6 +322,7 @@ if __name__ == '__main__':
     # Traceback the actions leading to the goal
     required = []
     consumed = []
+    goals = []
     best_action = None
     smallest = 999
     for rule in Crafting["Recipes"]:
@@ -331,11 +344,19 @@ if __name__ == '__main__':
     #print("best_action",best_action)
     required, consumed = required_for_goal(Crafting, best_action, required, consumed)
     for item in Crafting["Goal"]:
-        required.append(item)
-    #print("required",required)
-    #print("consumed",consumed)
+        goals.append(item)
+        if "Requires" in Crafting["Recipes"][best_action]: #if the action  requires something
+            for required_item in Crafting["Recipes"][best_action]["Requires"]: # for item that (the action) requires
+                goals.append(required_item)
+        if "Consumes" in Crafting["Recipes"][best_action]: #if the action  requires something
+            for consumed_item in Crafting["Recipes"][best_action]["Consumes"]: # for item that (the action) requires
+                goals.append(consumed_item)
+
+    print("required",required)
+    print("consumed",consumed)
+    print("goals",goals)
     # Search for a solution
-    resulting_plan = search(graph, state, is_goal, 30, heuristic, req_rule, Crafting, consumed, required)
+    resulting_plan = search(graph, state, is_goal, 300, heuristic, req_rule, Crafting, consumed, required, goals)
     # resulting_plan = False
     if resulting_plan:
         # Print resulting plan
