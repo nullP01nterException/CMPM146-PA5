@@ -116,18 +116,23 @@ def heuristic(state, action, rule, Crafting, consumed, required):
 
     for product in Crafting["Recipes"][action]["Produces"]:
         if product in required or product in consumed:
-            if state[product] <= 8:
-                modifier -= 500
+            if product is "plank" and state[product] <= 4:
+                modifier -= 100
+            elif product is "wood" and state[product] <= 2:
+                modifier -= 100
+            elif state[product] <= 8:
+                modifier -= 100
 
     for rules in rule:
         for item in rules["Requires"]:
             if item in Crafting["Recipes"][action]["Produces"]:
-                modifier -= 200
+                modifier -= 300
+                # modifier += 0
 
-            """if "Consumes" in Crafting["Recipes"][action]:
+            if "Consumes" in Crafting["Recipes"][action]:
                 for item in rules["Consumes"]:
                     if item in Crafting["Recipes"][action]["Consumes"]:
-                        modifier -= 100"""
+                        modifier -= 50
 
     tools = ["stone_pickaxe","bench","cart","wooden_pickaxe","iron_pickaxe","wooden_axe","stone_axe","iron_axe","furnace"]
     best_tools = ["iron_pickaxe","iron_axe"]
@@ -138,10 +143,10 @@ def heuristic(state, action, rule, Crafting, consumed, required):
         if key in best_tools and state[key] == 1:
             if key is "iron_pickaxe" and ("stone_pickaxe for" in action or "wooden_pickaxe for" in action):
                 return inf
-            elif key is "iron_pickaxe" and ("stone_axe for" in action or "wooden_axe for" in action):
+            elif key is "iron_axe" and ("stone_axe for" in action or "wooden_axe for" in action):
                 return inf
         elif key in good_tools and state[key] == 1:
-            #print("00000000000000000000key", key, "action", action)
+            #print("00000000000000000000key", key, "--action", action)
             if key is "stone_pickaxe" and "wooden_pickaxe for" in action:
                 #print("here")
                 return inf
@@ -206,7 +211,8 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting, consumed, re
             if effect not in cost_so_far.keys() or new_cost < cost_so_far[effect]:
                 cost_so_far[effect] = new_cost
                 priority = new_cost + heuristic(effect, name, rule, Crafting, consumed, required)
-                #print("name", name, "cost", new_cost, "effect", effect, "priority",priority)
+                #if priority < 1000:
+                    #print("name", name, "cost", new_cost, "effect", effect, "priority", priority)
                 heappush(frontier,(priority,name,effect))
                 came_from[effect] = (exploring[1],exploring[2])
         #print("------------------------")
@@ -321,7 +327,7 @@ if __name__ == '__main__':
     #print("required",required)
     #print("consumed",consumed)
     # Search for a solution
-    resulting_plan = search(graph, state, is_goal, 60, heuristic, req_rule, Crafting, consumed, required)
+    resulting_plan = search(graph, state, is_goal, 35, heuristic, req_rule, Crafting, consumed, required)
     # resulting_plan = False
     if resulting_plan:
         # Print resulting plan
