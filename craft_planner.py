@@ -116,9 +116,11 @@ def heuristic(state, action, rule, Crafting, consumed, required):
 
     for product in Crafting["Recipes"][action]["Produces"]:
         if product in required or product in consumed:
-            if product is "plank" and state[product] <= 4:
+            if product is "stick" and state[product] <= 2:
                 modifier -= 100
-            elif product is "wood" and state[product] <= 2:
+            elif product is "wood" and state[product] <= 4:
+                modifier -= 100
+            elif product is "coal" and state[product] <= 2:
                 modifier -= 100
             elif state[product] <= 8:
                 modifier -= 100
@@ -141,6 +143,7 @@ def heuristic(state, action, rule, Crafting, consumed, required):
 
     for key in state.keys():
         if key in best_tools and state[key] == 1:
+            #print("00000000000000000000key", key, "--action", action)
             if key is "iron_pickaxe" and ("stone_pickaxe for" in action or "wooden_pickaxe for" in action):
                 return inf
             elif key is "iron_axe" and ("stone_axe for" in action or "wooden_axe for" in action):
@@ -153,6 +156,7 @@ def heuristic(state, action, rule, Crafting, consumed, required):
             elif key is "stone_axe" and "wooden_axe for" in action:
                 return inf
         elif key in usable_tools and "punch" in action:
+            #print("00000000000000000000key", key, "--action", action)
             return inf
 
         if key in tools and state[key] > 1:
@@ -187,7 +191,7 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting, consumed, re
     came_from = {}
     cost_so_far={}
 
-
+    #cost = 0
     frontier.append((0,"Start",curr_state))
     came_from[curr_state] = ("start", None)
     cost_so_far[curr_state] = 0
@@ -213,12 +217,14 @@ def search(graph, state, is_goal, limit, heuristic, rule, Crafting, consumed, re
                 priority = new_cost + heuristic(effect, name, rule, Crafting, consumed, required)
                 #if priority < 1000:
                     #print("name", name, "cost", new_cost, "effect", effect, "priority", priority)
+                    #cost = new_cost
                 heappush(frontier,(priority,name,effect))
                 came_from[effect] = (exploring[1],exploring[2])
         #print("------------------------")
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
+    #print("cost",cost)
     print("Failed to find a path from", state, 'within time limit.')
     return None
 
@@ -324,10 +330,12 @@ if __name__ == '__main__':
                     smallest = req + con
     #print("best_action",best_action)
     required, consumed = required_for_goal(Crafting, best_action, required, consumed)
+    for item in Crafting["Goal"]:
+        required.append(item)
     #print("required",required)
     #print("consumed",consumed)
     # Search for a solution
-    resulting_plan = search(graph, state, is_goal, 35, heuristic, req_rule, Crafting, consumed, required)
+    resulting_plan = search(graph, state, is_goal, 30, heuristic, req_rule, Crafting, consumed, required)
     # resulting_plan = False
     if resulting_plan:
         # Print resulting plan
